@@ -1,0 +1,22 @@
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+.venv312/
+.venv_run/
+venv/
+
+# Local configuration and secrets
+.env
+
+# Runtime / generated data
+plant_recognition_system/plants.db
+plant_recognition_system/dataset/
+
+# IDE / OS files
+.vscode/
+.DS_Store
+Thumbs.db
