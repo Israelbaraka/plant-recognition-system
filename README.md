@@ -1,18 +1,26 @@
 # AI Plant Recognition System
 
-A custom plant recognition app that works like a gallery-based face recognition system, but for the specific plants you register. It does **not** try to guess generic plant species. If a plant is not in the database, the app reports it as **Unknown Plant**.
+An embedding-based plant recognition app that works like a gallery-driven face recognition system, but only for the plants you explicitly register. It does **not** try to guess generic plant species. If a plant is not in the database, the app returns **Unknown Plant**.
+
+## Highlights
+
+- Register new plants with multiple reference images
+- Recognize plants in real time from a camera feed
+- Support for webcam, IP Webcam, DroidCam, and ESP32-CAM streams
+- Local storage with SQLite and image embeddings
+- Adjustable similarity threshold from the GUI
 
 ## How it works
 
 1. The camera captures a frame.
-2. A green-plant detector finds the plant region.
+2. A green-plant detector finds the likely plant region.
 3. A pretrained MobileNetV2 model extracts an embedding.
 4. The recognition engine compares that embedding with stored embeddings in SQLite.
 5. If the similarity is above the threshold, the plant is recognized. Otherwise, it is shown as unknown.
 
-## Project layout
+## Project structure
 
-The source code lives in the `plant_recognition_system/` folder:
+The application code lives in `plant_recognition_system/`:
 
 - `main.py` — application entry point
 - `gui_app.py` — Tkinter GUI
@@ -22,6 +30,12 @@ The source code lives in the `plant_recognition_system/` folder:
 - `recognition_engine.py` — similarity matching
 - `database.py` — SQLite storage layer
 - `config.py` — app settings
+- `README.md` — detailed project documentation in the subfolder
+
+At the repository root you will also find:
+
+- `README.md` — this overview file
+- `.gitignore` — local files excluded from Git
 
 ## Requirements
 
@@ -29,29 +43,31 @@ The source code lives in the `plant_recognition_system/` folder:
 - pip
 - Internet access the first time you run the app, so PyTorch can download pretrained weights
 
-## Install
+## Quick start
 
 From the project root:
 
 ```bash
 cd plant_recognition_system
 pip install -r requirements.txt
+python main.py
 ```
 
-## Run
+## Installation
+
+If you prefer to run the steps separately:
+
+```bash
+cd plant_recognition_system
+pip install -r requirements.txt
+```
+
+## Running the app
 
 ```bash
 cd plant_recognition_system
 python main.py
 ```
-
-## Features
-
-- Register new plants with multiple images
-- Recognize plants in real time
-- Use webcam, IP Webcam, DroidCam, or ESP32-CAM streams
-- Store embeddings locally in SQLite
-- Tune the match threshold from the GUI
 
 ## Notes
 
