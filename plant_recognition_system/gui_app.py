@@ -19,6 +19,7 @@ Layout:
 """
 
 import os
+import re
 import threading
 import time
 import tkinter as tk
@@ -82,6 +83,8 @@ class PlantRecognitionApp:
         self._recognition_worker = None
         self._recognition_lock = threading.Lock()
         self._last_recognition_launch = 0.0
+        self._auto_register_lock = threading.Lock()
+        self._pending_auto_registrations = set()
 
         self._build_style()
         self._build_layout()
@@ -628,7 +631,10 @@ class PlantRecognitionApp:
         botanical_result = self.botanical_classifier.classify(crop)
         if botanical_result is not None:
             self.root.after(
-                0, lambda: self._show_botanical_result(botanical_result, display_box)
+                0,
+                lambda: self._show_botanical_result(
+                    botanical_result, display_box, crop.copy()
+                ),
             )
             return
 
@@ -655,7 +661,7 @@ class PlantRecognitionApp:
 
         self.root.after(0, update_ui)
 
-    def _show_botanical_result(self, result, box):
+    def _show_botanical_result(self, result, box, crop=None):
         self.last_box = box
         is_confident = result.is_confident
         label_name = result.scientific_name or result.name
@@ -676,6 +682,14 @@ class PlantRecognitionApp:
         self.botanical_mode_label.configure(text=detail)
         self.confidence_var.set(result.confidence)
         self.confidence_label.configure(text=f"{result.confidence:.1f}%")
+
+        if (
+            crop is not None
+            and is_confident
+            and self.botanical_classifier.mode == "plantnet_api"
+            and config.AUTO_REGISTER_PLANTNET_RESULTS
+        ):
+            self._maybe_auto_register_botanical_result(result, crop)
 
     def _draw_box(self, frame, box, color_hex, label):
         if box is None:
@@ -823,7 +837,7 @@ class PlantRecognitionApp:
 
         def worker():
             try:
-                plant_dir = os.path.join(config.DATASET_DIR, name)
+                plant_dir = self._plant_dataset_dir(name)
                 os.makedirs(plant_dir, exist_ok=True)
 
                 plant_id = self.db.add_plant(name)
@@ -844,6 +858,73 @@ class PlantRecognitionApp:
 
         threading.Thread(target=worker, daemon=True).start()
         self._set_status(f"Registering '{name}'...", COLOR_ACCENT)
+
+    def _maybe_auto_register_botanical_result(self, result, crop):
+        plant_name = (result.scientific_name or result.name or "").strip()
+        if not plant_name:
+            return
+
+        if self.db.plant_exists(plant_name):
+            return
+
+        with self._auto_register_lock:
+            if plant_name in self._pending_auto_registrations:
+                return
+            self._pending_auto_registrations.add(plant_name)
+
+        self._set_status(f"Auto-registering '{plant_name}'...", COLOR_SUBTEXT)
+
+        worker = threading.Thread(
+            target=self._auto_register_botanical_worker,
+            args=(plant_name, crop.copy()),
+            daemon=True,
+        )
+        worker.start()
+
+    def _auto_register_botanical_worker(self, name, crop):
+        try:
+            if self.db.plant_exists(name):
+                return
+
+            plant_dir = self._plant_dataset_dir(name)
+            os.makedirs(plant_dir, exist_ok=True)
+
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            image_path = os.path.join(plant_dir, f"auto_{timestamp}.jpg")
+            ok = cv2.imwrite(image_path, crop)
+            if not ok:
+                raise RuntimeError("Could not save the auto-registered plant image.")
+
+            embedding = self.extractor.extract(crop)
+            plant_id = self.db.add_plant(name)
+            self.db.add_embedding(plant_id, image_path, embedding)
+            self.engine.refresh_gallery()
+
+            self.root.after(0, lambda: self._on_auto_registration_complete(name))
+        except Exception as exc:
+            error_text = str(exc)
+            self.root.after(
+                0,
+                lambda: self._set_status(
+                    f"Auto-registration failed for '{name}': {error_text}", COLOR_DANGER
+                ),
+            )
+        finally:
+            with self._auto_register_lock:
+                self._pending_auto_registrations.discard(name)
+
+    def _on_auto_registration_complete(self, name):
+        self._refresh_plant_list()
+        self._set_status(f"Auto-registered '{name}'", COLOR_ACCENT)
+
+    def _plant_dataset_dir(self, name):
+        return os.path.join(config.DATASET_DIR, self._safe_path_component(name))
+
+    @staticmethod
+    def _safe_path_component(value):
+        value = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", value.strip())
+        value = value.strip(" .")
+        return value or "unknown_plant"
 
     def _on_registration_complete(self, name):
         messagebox.showinfo(
@@ -931,7 +1012,7 @@ class PlantRecognitionApp:
         self.engine.refresh_gallery()  # deleted plant stops matching immediately
 
         # Remove dataset folder for this plant too (best-effort).
-        plant_dir = os.path.join(config.DATASET_DIR, plant["name"])
+        plant_dir = self._plant_dataset_dir(plant["name"])
         if os.path.isdir(plant_dir):
             import shutil
 

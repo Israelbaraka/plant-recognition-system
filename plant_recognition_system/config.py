@@ -109,6 +109,12 @@ SIMILARITY_THRESHOLD = 0.72
 BOTANICAL_RECOGNITION_MODE = _resolve_botanical_mode()
 BOTANICAL_CONFIDENCE_THRESHOLD = 0.40
 
+# When enabled, a confident Pl@ntNet prediction for a plant that is not
+# already in the local gallery will be saved automatically as a new plant.
+AUTO_REGISTER_PLANTNET_RESULTS = os.getenv(
+    "AUTO_REGISTER_PLANTNET_RESULTS", "1"
+).strip().lower() not in {"0", "false", "no", "off"}
+
 PLANTNET_API_KEY = os.getenv("PLANTNET_API_KEY", "")
 PLANTNET_PROJECT = os.getenv("PLANTNET_PROJECT", "all")
 PLANTNET_ORGAN = os.getenv("PLANTNET_ORGAN", "leaf")
