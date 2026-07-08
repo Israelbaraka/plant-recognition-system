@@ -7,6 +7,8 @@ An embedding-based plant recognition app that works like a gallery-driven face r
 - Register new plants with multiple reference images
 - Recognize plants in real time from a camera feed
 - Support for webcam, IP Webcam, DroidCam, and ESP32-CAM streams
+- Optional Pl@ntNet API mode for botanical species identification
+- Automatic local registration when Pl@ntNet confidently detects a plant that is not yet in the gallery
 - Local storage with SQLite and image embeddings
 - Adjustable similarity threshold from the GUI
 
@@ -17,6 +19,8 @@ An embedding-based plant recognition app that works like a gallery-driven face r
 3. A pretrained MobileNetV2 model extracts an embedding.
 4. The recognition engine compares that embedding with stored embeddings in SQLite.
 5. If the similarity is above the threshold, the plant is recognized. Otherwise, it is shown as unknown.
+
+When `BOTANICAL_RECOGNITION_MODE=plantnet_api` and `PLANTNET_API_KEY` is set, the app can also identify botanical species with Pl@ntNet. If the API returns a confident result for a plant that is not already registered locally, the app automatically saves the image and creates a new local plant entry.
 
 ## Project structure
 
@@ -42,6 +46,7 @@ At the repository root you will also find:
 - Python 3.9 to 3.12 recommended
 - pip
 - Internet access the first time you run the app, so PyTorch can download pretrained weights
+- A Pl@ntNet API key is required only if you want botanical species identification and auto-registration
 
 ## Quick start
 
@@ -74,6 +79,7 @@ python main.py
 - The app creates its database automatically on first run.
 - A one-time model download is required the first time the feature extractor runs.
 - Local runtime data such as `plants.db`, `dataset/`, and virtual environments are ignored by Git.
+- Auto-registration from Pl@ntNet is controlled by `AUTO_REGISTER_PLANTNET_RESULTS` in `.env` and is enabled by default.
 
 ## License
 
